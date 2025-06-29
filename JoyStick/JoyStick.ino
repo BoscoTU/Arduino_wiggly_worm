@@ -5,13 +5,14 @@ int xVal, yVal, zVal;
 
 void setup() {
   pinMode(zAxisPin, INPUT_PULLUP);
+  Serial.begin(9600);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   xVal = analogRead(xAxisPin);
   yVal = analogRead(yAxisPin);
-  zval = digitalRead(zAxisPin);
+  zVal = digitalRead(zAxisPin);
 
   Serial.print("X: ");
   Serial.print(xVal);

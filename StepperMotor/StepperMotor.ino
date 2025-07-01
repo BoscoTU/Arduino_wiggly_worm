@@ -8,6 +8,15 @@ const unsigned long oneStepInterval = 4;
 int ticksFromOrigin = 0;
 
 //joystick variables
+int xAxisPin = 0;
+int yAxisPin = 1;
+int zAxisPin = 2;
+
+int X_HOME = 516;
+int ANALOG_TOLARANCE = 50;
+int STEP_TOLARANCE = 20;
+float xVal, yVal;
+int zVal;
 
 //telemetry variables
 unsigned long lastTelemetryTime = 0;
@@ -16,24 +25,41 @@ void setup() {
     for (int i = 0; i < 4; i++) {
         pinMode(outPorts[i], OUTPUT);
     }
+    pinMode(zAxisPin, INPUT_PULLUP);
     Serial.begin(9600);
 }
 
 void loop() {
-    stepsToDo = joyStickFollower();
+    xVal = readX();
+    stepsToDo = joyStickXFollower();
     stepperMotorController();
     telemetry();
 }
 
-int joyStickFollower() {
-    int receivedInt;
-    if (Serial.available()) {
-        receivedInt = Serial.parseInt();
-        Serial.print("received: ");
-        Serial.print(receivedInt);
-        return receivedInt;
+long readX() {
+    int joystickX = analogRead(xAxisPin);
+    if (absoluteVal(joystickX - X_HOME) >= ANALOG_TOLARANCE) {
+        return (float)(joystickX - X_HOME) / X_HOME * 90;
     } else {
-        return stepsToDo;
+        return 0;
+    }
+}
+
+int joyStickXFollower() {
+    // int receivedInt;
+    // if (Serial.available()) {
+    //     receivedInt = Serial.parseInt();
+    //     Serial.print("received: ");
+    //     Serial.print(receivedInt);
+    //     return receivedInt;
+    // } else {
+    //     return stepsToDo;
+    // }
+    if (xVal != 0) {
+        int stepDifference = 512 * xVal/90.0 - (ticksFromOrigin * -1);
+        return (absoluteVal(stepDifference) >= STEP_TOLARANCE)? stepDifference: 0;
+    } else {
+        return ticksFromOrigin;
     }
 };
 
@@ -75,6 +101,16 @@ void telemetry() {
     unsigned long currentMillis = millis();
     if (currentMillis - lastTelemetryTime >= telemetryInterval) {
         lastTelemetryTime = currentMillis;
-        Serial.println(stepsToDo);
+        // Serial.println(analogRead(xAxisPin));
+        Serial.print("steps to do: ");
+        Serial.print(stepsToDo);
+        Serial.print(" difference ");
+        Serial.print(512 * xVal/90.0 - (ticksFromOrigin * -1));
+        Serial.print(" ticksFromOrigin: ");
+        Serial.println(ticksFromOrigin);
     }
+}
+
+int absoluteVal(int x) {
+    return (x < 0)? -x: x;
 }

@@ -39,8 +39,6 @@ enum AnkleServoPos {
   STRAIGHT = 135
 };
 
-AnkleServoPos ankleTargetPos = MIN;
-
 enum WiggleStates {
   RETRACTED,
   START_WIGGLE,
@@ -48,12 +46,14 @@ enum WiggleStates {
 };
 
 WiggleStates state = RETRACTED;
+int currentWiggleStride;
 
 class ServoPosTransition {
   public:
     int targetPos;
     int rate;
     int initialPos;
+    int strideLength;
     bool ordered = false;
     bool done = false;
     bool initialized = false;
@@ -64,6 +64,18 @@ class ServoPosTransition {
       this -> targetPos = targetPos;
       this -> rate = rate;
       this -> initialPos = initialPos;
+      this -> strideLength = 1;
+    }
+
+    ServoPosTransition(int targetPos, int rate, int initialPos, int strideLength) {
+      this -> rate = rate;
+      if (strideLength > 0) {
+        this -> targetPos = targetPos * absoluteVal(strideLength);
+        this -> initialPos = initialPos;
+      } else {
+        this -> targetPos = initialPos * absoluteVal(strideLength);
+        this -> initialPos = targetPos;
+      }
     }
 
     int run(int servoPos) {
@@ -102,33 +114,31 @@ void setup() {
 }
 
 void loop() {
+  yVal = readY();
   if (elbowPosTrans.done) {
-    switch (state)
-    {
+    switch (state) {
     case WiggleStates::RETRACTED:
+      currentWiggleStride = yVal;
       state = WiggleStates::START_WIGGLE;
-      elbowPosTrans = ServoPosTransition(HORIZONTAL, 25, NEUTRAL);//1000ms
-      anklePosTrans = ServoPosTransition(START_PUSH, 100, MIN);//1000ms
-      ankleTargetPos = START_PUSH;
+      elbowPosTrans = ServoPosTransition(HORIZONTAL, 25, NEUTRAL, currentWiggleStride > 1);//1000ms
+      anklePosTrans = ServoPosTransition(START_PUSH, 100, MIN, currentWiggleStride > 1);//1000ms
       break;
     
     case WiggleStates::START_WIGGLE:
       state = WiggleStates::END_WIGGLE;
-      elbowPosTrans = ServoPosTransition(ON_GROUND, 59, HORIZONTAL);//1900ms
-      anklePosTrans = ServoPosTransition(STRAIGHT, 20, START_PUSH);//1900ms
-      ankleTargetPos = STRAIGHT;
+      elbowPosTrans = ServoPosTransition(ON_GROUND, 59, HORIZONTAL, currentWiggleStride);//1900ms
+      anklePosTrans = ServoPosTransition(STRAIGHT, 20, START_PUSH, cuttentWiggleStride);//1900ms
       break;
 
     case WiggleStates::END_WIGGLE:
       state = WiggleStates::RETRACTED;
-      elbowPosTrans = ServoPosTransition(NEUTRAL, 25, ON_GROUND);//1800ms
-      anklePosTrans = ServoPosTransition(MIN, 13, STRAIGHT);//1800ms
+      elbowPosTrans = ServoPosTransition(NEUTRAL, 25, ON_GROUND, currentWiggleStride > 1);//1800ms
+      anklePosTrans = ServoPosTransition(MIN, 13, STRAIGHT, currentWiggleStride > 1);//1800ms
       ankleTargetPos = MIN;
     default:
       state = WiggleStates::RETRACTED;
       elbowPosTrans = ServoPosTransition(NEUTRAL, 25, ON_GROUND);
       ServoPosTransition anklePosTrans(MIN, 20, STRAIGHT);
-      ankleTargetPos = MIN;
       break;
     }
   }
@@ -145,34 +155,31 @@ void loop() {
 
     // Serial.print(" ankle Servo Pos: ");
     // Serial.println(ankleServoPos);
-    Serial.print(state);
-    Serial.print(" ankleTargetPos");
-    Serial.println(ankleTargetPos);
   }
 }
 
-long readY() {
-    int joystickY = analogRead(yAxisPin);
-    if (absoluteVal(joystickY - Y_HOME) >= ANALOG_TOLARANCE) {
-        return (float)(joystickY - Y_HOME) / Y_HOME * 90 + 90;
-    } else {
-        return 90;
-    }
-}
-
-int readAnkleY(){ 
-  int receivedInt;
-  if (Serial.available()) {
-    receivedInt = Serial.parseInt();
-    if (receivedInt < 180 || receivedInt > 0) {
-      Serial.print("ankle received: ");
-      Serial.println(receivedInt);
-      return receivedInt;
-    } else {return ankleServoPos;};
+float readY() {
+  int joystickY = analogRead(yAxisPin);
+  if (absoluteVal(joystickY - Y_HOME) >= ANALOG_TOLARANCE) {
+      return (float)(joystickY - Y_HOME) / Y_HOME;
   } else {
-    return ankleServoPos;
+      return 0;
   }
 }
+
+// int readAnkleY(){ 
+//   int receivedInt;
+//   if (Serial.available()) {
+//     receivedInt = Serial.parseInt();
+//     if (receivedInt < 180 || receivedInt > 0) {
+//       Serial.print("ankle received: ");
+//       Serial.println(receivedInt);
+//       return receivedInt;
+//     } else {return ankleServoPos;};
+//   } else {
+//     return ankleServoPos;
+//   }
+// }
 
 int absoluteVal(int x) {
     return (x < 0)? -x: x;

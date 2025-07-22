@@ -29,13 +29,13 @@ int zVal;
 
 enum ElbowServoPos {
   NEUTRAL = 90,
-  HORIZONTAL = 130,
+  READY_PUSH = 105,
   ON_GROUND = 162
 };
 
 enum AnkleServoPos {
   MIN = 0,
-  START_PUSH = 40,
+  START_PUSH = 15,
   STRAIGHT = 135
 };
 
@@ -48,6 +48,10 @@ enum WiggleStates {
 WiggleStates state = RETRACTED;
 int currentWiggleStride;
 
+int absoluteVal(int x) {
+    return (x < 0)? -x: x;
+}
+
 class ServoPosTransition {
   public:
     int targetPos;
@@ -59,6 +63,14 @@ class ServoPosTransition {
     bool initialized = false;
 
     unsigned long lastServoMoveTime = 0;
+
+    ServoPosTransition(int targetPos, int rate) {
+      this -> targetPos = targetPos;
+      this -> rate = rate;
+      this -> initialPos = 0;
+      this -> strideLength = 1;
+      this -> initialized = true;
+    }
     
     ServoPosTransition(int targetPos, int rate, int initialPos) {
       this -> targetPos = targetPos;
@@ -103,8 +115,8 @@ class ServoPosTransition {
     }
 };
 
-ServoPosTransition elbowPosTrans(ON_GROUND, 50, HORIZONTAL);
-ServoPosTransition anklePosTrans(MIN, 50, STRAIGHT);
+ServoPosTransition elbowPosTrans(NEUTRAL, 50);
+ServoPosTransition anklePosTrans(MIN, 50);
 
 void setup() {
   elbowServo.attach(elbowServoPin);
@@ -120,25 +132,24 @@ void loop() {
     case WiggleStates::RETRACTED:
       currentWiggleStride = yVal;
       state = WiggleStates::START_WIGGLE;
-      elbowPosTrans = ServoPosTransition(HORIZONTAL, 25, NEUTRAL, currentWiggleStride > 1);//1000ms
-      anklePosTrans = ServoPosTransition(START_PUSH, 100, MIN, currentWiggleStride > 1);//1000ms
+      elbowPosTrans = ServoPosTransition(READY_PUSH, 25, NEUTRAL);//1000ms
+      anklePosTrans = ServoPosTransition(START_PUSH, 100, MIN);//1000ms
       break;
     
     case WiggleStates::START_WIGGLE:
       state = WiggleStates::END_WIGGLE;
-      elbowPosTrans = ServoPosTransition(ON_GROUND, 59, HORIZONTAL, currentWiggleStride);//1900ms
-      anklePosTrans = ServoPosTransition(STRAIGHT, 20, START_PUSH, cuttentWiggleStride);//1900ms
+      elbowPosTrans = ServoPosTransition(ON_GROUND, 40, READY_PUSH);//1900ms
+      anklePosTrans = ServoPosTransition(STRAIGHT, 20, START_PUSH);//1900ms
       break;
 
     case WiggleStates::END_WIGGLE:
       state = WiggleStates::RETRACTED;
-      elbowPosTrans = ServoPosTransition(NEUTRAL, 25, ON_GROUND, currentWiggleStride > 1);//1800ms
-      anklePosTrans = ServoPosTransition(MIN, 13, STRAIGHT, currentWiggleStride > 1);//1800ms
-      ankleTargetPos = MIN;
+      elbowPosTrans = ServoPosTransition(NEUTRAL, 25, ON_GROUND);//1800ms
+      anklePosTrans = ServoPosTransition(MIN, 15, STRAIGHT);//1800ms
     default:
       state = WiggleStates::RETRACTED;
-      elbowPosTrans = ServoPosTransition(NEUTRAL, 25, ON_GROUND);
-      ServoPosTransition anklePosTrans(MIN, 20, STRAIGHT);
+      elbowPosTrans = ServoPosTransition(NEUTRAL, 25);
+      ServoPosTransition anklePosTrans(MIN, 20);
       break;
     }
   }
@@ -150,11 +161,11 @@ void loop() {
   if (millis() - lastStepTime >= oneStepInterval) {
     lastStepTime = millis();
 
-    // Serial.print("elbow Servo Pos: ");
-    // Serial.print(elbowServoPos);
+    Serial.print("elbow Servo Pos: ");
+    Serial.print(elbowServoPos);
 
-    // Serial.print(" ankle Servo Pos: ");
-    // Serial.println(ankleServoPos);
+    Serial.print(" ankle Servo Pos: ");
+    Serial.println(ankleServoPos);
   }
 }
 
@@ -180,7 +191,3 @@ float readY() {
 //     return ankleServoPos;
 //   }
 // }
-
-int absoluteVal(int x) {
-    return (x < 0)? -x: x;
-}

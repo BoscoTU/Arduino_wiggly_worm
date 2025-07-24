@@ -1,6 +1,5 @@
-int outPorts[] = {11, 10, 9, 8};
-
 //motor control variables 
+int outPorts[] = {11, 10, 9, 8};
 int stepsToDo = 0;
 unsigned long lastStepTime = 0;
 
@@ -36,7 +35,7 @@ void loop() {
     telemetry();
 }
 
-long readX() {
+float readX() {
     int joystickX = analogRead(xAxisPin);
     if (absoluteVal(joystickX - X_HOME) >= ANALOG_TOLARANCE) {
         return (float)(joystickX - X_HOME) / X_HOME * 90;
@@ -56,8 +55,9 @@ int joyStickXFollower() {
     //     return stepsToDo;
     // }
     if (xVal != 0) {
-        int stepDifference = 512 * xVal/90.0 - (ticksFromOrigin * -1);
-        return (absoluteVal(stepDifference) >= STEP_TOLARANCE)? stepDifference: 0;
+        int stepDifference = 516 * xVal/90.0 - (ticksFromOrigin * -1);
+        int followingRes = (absoluteVal(stepDifference) >= STEP_TOLARANCE)? stepDifference: 0;
+        return followingRes;
     } else {
         return ticksFromOrigin;
     }
@@ -107,7 +107,9 @@ void telemetry() {
         Serial.print(" difference ");
         Serial.print(512 * xVal/90.0 - (ticksFromOrigin * -1));
         Serial.print(" ticksFromOrigin: ");
-        Serial.println(ticksFromOrigin);
+        Serial.print(ticksFromOrigin);
+        Serial.print(" xVal: ");
+        Serial.println(xVal);
     }
 }
 

@@ -134,11 +134,14 @@ unsigned long telemetryInterval = 100;
 //Joystick variables 
 int xAxisPin = 0;
 int yAxisPin = 1;
+
+float CUBIC_X = -0.717395;
+float X_CONSTANT = 1.98971;
 // int zAxisPin = 2;
 
 int X_HOME = 516;
 int Y_HOME = 501;
-int ANALOG_TOLARANCE = 100;
+int ANALOG_TOLARANCE = 60;
 float xVal, yVal;
 // int zVal;
 
@@ -265,10 +268,18 @@ void runServoArm() {
   ankleServo.write(ankleServoPos);
 }
 
+float cubicJoystickControl(float x) {
+  x = range(x, -1, 1);
+  float y = CUBIC_X * x * x * x + X_CONSTANT * x;
+  return y;
+}
+
 float readX() {
     int joystickX = analogRead(xAxisPin);
     if (absoluteVal(joystickX - X_HOME) >= ANALOG_TOLARANCE) {
-        return (float)(joystickX - X_HOME) / X_HOME * 90;
+        float processedX = (float)(joystickX - X_HOME) / X_HOME * 90;
+        processedX = cubicJoystickControl(processedX);
+        return processedX;
     } else {
         return 0;
     }
@@ -278,8 +289,7 @@ float readY() {
   int joystickY = analogRead(yAxisPin);
   if (absoluteVal(joystickY - Y_HOME) >= ANALOG_TOLARANCE) {
       float realY = (float)(joystickY - Y_HOME) / Y_HOME * -1;
-      realY = range(realY, -1, 1);
-      float processedY = getPositivity(realY) * (realY * realY);
+      float processedY = cubicJoystickControl(realY);
       return realY;
   } else {
       return 0;
@@ -297,7 +307,7 @@ void telemetry() {
         // Serial.print(" ticksFromOrigin: ");
         // Serial.println(ticksFromOrigin);
         Serial.print("xVal ");
-        Serial.print(xVal);
+        Serial.print(analogRead(A1));
         Serial.print(" yVal: ");
         Serial.println(yVal);
     }
